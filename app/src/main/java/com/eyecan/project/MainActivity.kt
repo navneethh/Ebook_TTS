@@ -3,8 +3,6 @@ package com.eyecan.project
 import android.Manifest
 import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.app.Activity
-import android.content.ActivityNotFoundException
-import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -14,35 +12,32 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
 import android.speech.tts.TextToSpeech
+import android.text.Html
 import android.util.Log
-import android.view.View
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.FileProvider
-import com.github.barteksc.pdfviewer.PDFView
-import com.itextpdf.text.pdf.PdfReader
-import com.itextpdf.text.pdf.parser.PdfTextExtractor
+import nl.siegmann.epublib.domain.Book
+import nl.siegmann.epublib.domain.Resource
+import nl.siegmann.epublib.domain.Spine
+import nl.siegmann.epublib.epub.EpubReader
 import java.io.BufferedReader
-import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.io.InputStreamReader
-import java.net.URI
-import java.net.URL
 import java.util.*
+import kotlin.collections.ArrayList
 
 
 class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
 
-  lateinit var urifile:URI
+
     lateinit var string_extracted:String
   lateinit var select:TextView
     lateinit var read:Button
+
     private var tts: TextToSpeech? = null
 
     private val LOCAL_STORAGE = "/storage/self/primary/"
@@ -68,8 +63,8 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
             Toast.makeText(this@MainActivity,"selection Clicked",Toast.LENGTH_SHORT).show()
             val ir = Intent(Intent.ACTION_OPEN_DOCUMENT)
             ir.addCategory(Intent.CATEGORY_OPENABLE)
-//            ir.setType("application/*")
-            ir.setType("text/plain")
+            ir.setType("application/*")
+//                ir.setType("text/plain")
             startActivityForResult(ir,100)
 
             val contentResolver = applicationContext.contentResolver
@@ -80,6 +75,7 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
 
         read!!.isEnabled = false
         read.setOnClickListener{speakOut()}
+
 
 
     }
@@ -165,17 +161,16 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
 //                    webb.setImageURI(data?.data)
 
 
-                    val uriPdfPath =data?.data;
-                    val pdff= findViewById<PDFView>(R.id.web);
-//                    pdff.fromUri(uriPdfPath).load()
+                    val uri_book =data?.data;
 
 
-                    string_extracted = readTextFromUri(uriPdfPath!!)
+
+
+                    string_extracted = readTextFromUri(uri_book!!)
                     Log.e("onactivity result" ,string_extracted)
                     select.text=string_extracted
-                    speak(string_extracted)
 
-                    //                Toast.makeText(this, uri.getPath(), Toast.LENGTH_SHORT).show();
+
 
 
 
@@ -187,53 +182,115 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
         }
     }
 
-    private fun speak(text: String) {
-
-
-
-//             fun onInit(status: Int) {
-//                if (status == TextToSpeech.SUCCESS) {
-//                    val result = tts!!.setLanguage(Locale.US)
-//
-//                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-//                        Log.e("TTS","The Language not supported!")
-//                    } else {
-//                        btnSpeak!!.isEnabled = true
-//                    }
-//                }
-
-
-    }
-
-
-
-
-
 
 
 
     @Throws(IOException::class)
     fun readTextFromUri(uri: Uri): String {
         val stringBuilder = StringBuilder()
+       lateinit var sff:String
         contentResolver.openInputStream(uri)?.use { inputStream ->
-            BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                var line: String? = reader.readLine()
-                while (line != null) {
-                    stringBuilder.append(line)
-                    line = reader.readLine()
-                }
+//            BufferedReader(InputStreamReader(inputStream)).use { reader ->
+//                var line: String? = reader.readLine()
+//                while (line != null) {
+//                    stringBuilder.append(line)
+//                   line = reader.readLine()
+//                }
+//            }}
+//
+//        return stringBuilder.toString()
+
+
+            val book = EpubReader().readEpub(inputStream)
+
+
+            stringBuilder.append(book.title)
+
+           stringBuilder.append(" by"+ book.metadata.authors)
+            val bookstring = listofArray(book)
+            val s:String= bookstring.get(2)
+stringBuilder.append(s)
+
+
+           }
+
+
+//            while (line != null) {
+//                stringBuilder.append(line)
+//                line = reader.readLine()
+//            }
+
+    return stringBuilder.toString()
+    }
+
+
+
+    fun listofArray(book: Book):ArrayList<String>{
+
+        val spine: Spine = book.spine
+        var res: Resource
+        val spineList = spine.spineReferences
+        val listOfPages: ArrayList<String> = ArrayList()
+        val count = spineList.size
+        var start = 0
+        val string = StringBuilder()
+        res = spine.getResource(0);
+        while ( start < count) {
+
+            res = spine.getResource(start);
+//            val iss: InputStream = res.inputStream
+            val reader = BufferedReader(InputStreamReader(res.inputStream))
+            var line: String? = reader.readLine()
+            while(line!=null){
+            if (line!!.contains("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>")) {
+                string.delete(0, string.length);
             }
+            string.append(Html.fromHtml(formatLine(line)));
+
+            if (line.contains("</html>")) {
+                listOfPages.add(string.toString());
+            }
+                line= reader.readLine()
+            }
+
+            start++
         }
-        return stringBuilder.toString()
+
+        return listOfPages;
+    }
+
+    fun formatLine (  line : String):String{
+
+         var temps:String=line
+
+        if (line.contains("http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd")) {
+            temps = line.substring(line.indexOf(">") + 1, line.length);
+        }
+        if ((line.contains("{") && line.contains("}"))
+            || ((line.contains("/*")) && line.contains("*/"))
+            || (line.contains("<!--") && line.contains("-->"))) {
+            temps = line.substring(line.length);
+        }
+
+  return temps  }
+
+
+//        val stringBuilder = StringBuilder()
+//        contentResolver.openInputStream(uri)?.use { inputStream ->
+//            val zis = ZipInputStream(contentResolver.openInputStream(uri))
+//            var entry = zis.nextEntry
+//
+//            zis.read( bd:byte[],  off:int, int len)
+//            val out: java.lang.StringBuilder = getTxtFiles()
 
 
 
 
-}
+
 
     override fun onInit( status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts!!.setLanguage(Locale.US)
+            val result = tts!!.setLanguage(Locale.UK)
             Log.e("TTS","The Language is selcted")
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 Log.e("TTS","The Language not supported!")
