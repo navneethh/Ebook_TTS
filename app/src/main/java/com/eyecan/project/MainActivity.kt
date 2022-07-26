@@ -14,11 +14,13 @@ import android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
 import android.speech.tts.TextToSpeech
 import android.text.Html
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.view.isVisible
 import nl.siegmann.epublib.domain.Book
 import nl.siegmann.epublib.domain.Resource
 import nl.siegmann.epublib.domain.Spine
@@ -35,10 +37,15 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
 
 
     lateinit var string_extracted:String
-  lateinit var select:TextView
-    lateinit var read:Button
+     var currentchap:Int=1
+     lateinit var select:TextView
+    lateinit var chapter_number:TextView
+    lateinit var next:Button
+     lateinit var read:Button
+    lateinit var pause_button:Button
 
-    private var tts: TextToSpeech? = null
+     lateinit var bookchapters:ArrayList<String>
+     private var tts: TextToSpeech? = null
 
     private val LOCAL_STORAGE = "/storage/self/primary/"
     private val REQUEST_EXTERNAL_STORAGE = 1
@@ -48,82 +55,80 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
     )
 
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        supportActionBar!!.hide()
 
-       select = findViewById(R.id.text_select) as TextView
+        select = findViewById(R.id.text_select) as TextView
+        chapter_number= findViewById(R.id.text_chapter)
         read= findViewById(R.id.button1)
-
+        pause_button= findViewById(R.id.pause_but)
         verifystoragepermission(this);
         tts = TextToSpeech(this, this)
-
-        select.setOnClickListener{
-            Toast.makeText(this@MainActivity,"selection Clicked",Toast.LENGTH_SHORT).show()
-            val ir = Intent(Intent.ACTION_OPEN_DOCUMENT)
-            ir.addCategory(Intent.CATEGORY_OPENABLE)
-            ir.setType("application/*")
-//                ir.setType("text/plain")
-            startActivityForResult(ir,100)
-
-            val contentResolver = applicationContext.contentResolver
+         currentchap= 1
 
 
+        chapter_number.visibility= View.INVISIBLE
+
+        next= findViewById<Button>(R.id.nextbutton)
+
+
+//     setting button can be clicked or not
+        next.isEnabled=false
+        pause_button.isEnabled=false
+        read.isEnabled = false
+
+
+
+
+        read.setOnClickListener {
+            pause_button.isEnabled=true
+            speakOut()
         }
 
 
-        read!!.isEnabled = false
-        read.setOnClickListener{speakOut()}
+        pause_button.setOnClickListener {
+
+            if (tts != null) {
+                if(tts!!.isSpeaking) {
+                   pause_button.isEnabled=false
+                    tts!!.stop()
+                }
+            }
+        }
 
 
+        select.setOnClickListener{
+            Toast.makeText(this@MainActivity,"Select Book",Toast.LENGTH_SHORT).show()
+            val ir = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            ir.addCategory(Intent.CATEGORY_OPENABLE)
+            ir.setType("application/epub+zip")
+            startActivityForResult(ir,100)
+        }
+
+
+        next.setOnClickListener {
+            chapter_number.isVisible=true
+            if(currentchap<bookchapters.size){
+            chapter_number.text= "Chapter "+ currentchap.toString()+"/"+(bookchapters.size-1)
+            select.text=""
+            val chaptertext=  bookchapters.get(currentchap)
+            select.text=chaptertext
+            currentchap++
+        }
+        }
 
     }
 
     private fun speakOut() {
+
         val text = select.text
+        tts!!.stop()
         tts!!.speak(text, TextToSpeech.QUEUE_FLUSH, null,"")
     }
 
-    private fun openpdf() {
 
-//
-//        val file = File(Environment.getExternalStorageDirectory(), "Download/TRENDOCEANS.pdf")
-//        Log.d("pdfFIle", "" + file)
-//
-//        val uriPdfPath =
-//            FileProvider.getUriForFile(this, applicationContext.packageName + ".provider", file)
-//        Log.d("pdfPath", "" + uriPdfPath)
-//        val pdfOpenIntent = Intent(Intent.ACTION_VIEW)
-//        pdfOpenIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-//        pdfOpenIntent.clipData = ClipData.newRawUri("", uriPdfPath)
-//       pdfOpenIntent.setDataAndType(uriPdfPath, "application/pdf")
-//        pdfOpenIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-//
-//
-//        val pdff= findViewById<PDFView>(R.id.web);
-//        pdff.fromUri(uriPdfPath).load()
-
-
-
-
-
-//
-//            startActivity(pdfOpenIntent)
-
-
-
-
-
-
-
-//        } catch (activityNotFoundException: ActivityNotFoundException) {
-//            Toast.makeText(this, "There is no app to load corresponding PDF", Toast.LENGTH_LONG)
-//                .show()
-//        }
-
-
-    }
 
     private fun verifystoragepermission(activity: MainActivity) {
         val permission = ActivityCompat.checkSelfPermission(activity, WRITE_EXTERNAL_STORAGE);
@@ -156,26 +161,14 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
 
 
                     Log.e("onactivity result" , data?.data.toString())
-//                    val webb = findViewById<ImageView>(R.id.web)
-
-//                    webb.setImageURI(data?.data)
-
-
                     val uri_book =data?.data;
-
-
-
 
                     string_extracted = readTextFromUri(uri_book!!)
                     Log.e("onactivity result" ,string_extracted)
                     select.text=string_extracted
-
-
-
-
-
-
-//                    readPdfFile(tt)
+                    chapter_number.text=" "
+                    next.isEnabled=true
+                    currentchap=1
 
                 }
             }
@@ -190,42 +183,25 @@ class MainActivity : AppCompatActivity() ,TextToSpeech.OnInitListener{
         val stringBuilder = StringBuilder()
        lateinit var sff:String
         contentResolver.openInputStream(uri)?.use { inputStream ->
-//            BufferedReader(InputStreamReader(inputStream)).use { reader ->
-//                var line: String? = reader.readLine()
-//                while (line != null) {
-//                    stringBuilder.append(line)
-//                   line = reader.readLine()
-//                }
-//            }}
-//
-//        return stringBuilder.toString()
-
 
             val book = EpubReader().readEpub(inputStream)
-
 
             stringBuilder.append(book.title)
 
            stringBuilder.append(" by"+ book.metadata.authors)
-            val bookstring = listofArray(book)
-            val s:String= bookstring.get(2)
-stringBuilder.append(s)
+           bookchapters = ChaptersArray(book)
+            val s:String= bookchapters.get(0)
+            stringBuilder.append(s)
 
 
            }
-
-
-//            while (line != null) {
-//                stringBuilder.append(line)
-//                line = reader.readLine()
-//            }
 
     return stringBuilder.toString()
     }
 
 
-
-    fun listofArray(book: Book):ArrayList<String>{
+//   Get String Arraylist with Chapters text
+      fun ChaptersArray(book: Book):ArrayList<String>{
 
         val spine: Spine = book.spine
         var res: Resource
@@ -233,23 +209,24 @@ stringBuilder.append(s)
         val listOfPages: ArrayList<String> = ArrayList()
         val count = spineList.size
         var start = 0
-        val string = StringBuilder()
+
         res = spine.getResource(0);
         while ( start < count) {
-
+            val string = StringBuilder()
             res = spine.getResource(start);
 //            val iss: InputStream = res.inputStream
             val reader = BufferedReader(InputStreamReader(res.inputStream))
             var line: String? = reader.readLine()
             while(line!=null){
-            if (line!!.contains("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>")) {
-                string.delete(0, string.length);
-            }
-            string.append(Html.fromHtml(formatLine(line)));
 
-            if (line.contains("</html>")) {
-                listOfPages.add(string.toString());
-            }
+                if (line!!.contains("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>")) {
+                    string.delete(0, string.length);
+                }
+                string.append(Html.fromHtml(formatLine(line)));
+
+                if (line.contains("</html>")) {
+                    listOfPages.add(string.toString());
+                }
                 line= reader.readLine()
             }
 
@@ -259,6 +236,7 @@ stringBuilder.append(s)
         return listOfPages;
     }
 
+// Formatting html tags
     fun formatLine (  line : String):String{
 
          var temps:String=line
@@ -272,22 +250,13 @@ stringBuilder.append(s)
             temps = line.substring(line.length);
         }
 
-  return temps  }
-
-
-//        val stringBuilder = StringBuilder()
-//        contentResolver.openInputStream(uri)?.use { inputStream ->
-//            val zis = ZipInputStream(contentResolver.openInputStream(uri))
-//            var entry = zis.nextEntry
-//
-//            zis.read( bd:byte[],  off:int, int len)
-//            val out: java.lang.StringBuilder = getTxtFiles()
+  return temps
+    }
 
 
 
 
-
-
+// intializing text to speech
     override fun onInit( status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             val result = tts!!.setLanguage(Locale.UK)
@@ -301,4 +270,22 @@ stringBuilder.append(s)
         }
     }
 
+
+    //    stopping text to speech if activity is paused
+    override fun onPause() {
+        if (tts != null) {
+            tts!!.stop()
+        }
+        super.onPause()
+    }
+
+    public override fun onDestroy() {
+        // Shutdown TTS when
+        // activity is destroyed
+        if (tts != null) {
+            tts!!.stop()
+            tts!!.shutdown()
+        }
+        super.onDestroy()
+    }
 }

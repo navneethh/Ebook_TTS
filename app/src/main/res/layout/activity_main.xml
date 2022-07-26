@@ -4,11 +4,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/main_back"
     tools:context=".MainActivity">
 
     <ScrollView
         android:id="@+id/linearLayout"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
 
         android:layout_marginStart="16dp"
@@ -24,25 +25,33 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
 
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="32dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="32dp"
-            android:background="@color/Layout_light"
+
+            android:background="@drawable/white_circular"
             android:orientation="vertical">
 
 
             <TextView
-                android:id="@+id/text_select"
-
+                android:id="@+id/text_chapter"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="#996DE6"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:text="Chapter "
+                android:visibility="invisible"
+                />
+            <TextView
+                android:id="@+id/text_select"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="350dp"
                 android:layout_gravity="center"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:padding="15dp"
                 android:text="Click here to select a Book (epub file)"
-                android:textColor="@color/black"
+                android:textColor="@color/text_color"
                 android:textSize="20sp" />
 
 
@@ -54,12 +63,40 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
+        android:layout_marginTop="156dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="32dp"
         android:text="READ"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayout2"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/linearLayout" />
+
+    <LinearLayout
+        android:id="@+id/linearLayout2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <Button
+            android:id="@+id/pause_but"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="Stop" />
+
+        <Button
+            android:id="@+id/nextbutton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+           android:layout_margin="8dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="Next chapter" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
